@@ -16,7 +16,7 @@ const styles = StyleSheet.create({
         fontFamily: "Poppins-Bold",
         fontSize: SIZES.xxLarge - 7,
         color: COLORS.green,
-        marginTop: -4,
+        marginTop: -20,
         marginHorizontal: SIZES.small,
     },
     searchContainer: {
