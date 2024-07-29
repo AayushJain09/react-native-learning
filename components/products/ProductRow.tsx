@@ -1,26 +1,42 @@
-import {FlatList, StyleSheet, Text, View} from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import React from 'react';
-import {COLORS, SIZES} from '../../constants';
+import { COLORS, SIZES } from '../../constants';
 import ProductCardView from './ProductCardView';
+import useFetch from '../../hooks/useFetch';
 
 const ProductRow = () => {
-  const products = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-  return <View style={styles.container}>
-    <FlatList 
-        data={products}
-        horizontal
-        contentContainerStyle={{columnGap: SIZES.xSmall}}
-        renderItem={({item}) => (<ProductCardView />)}
-    />
-  </View>;
+  const { data, isLoading, error, refetch } = useFetch();
+  
+  return (
+    <View style={styles.container}>
+      {isLoading ? (
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      ) : error ? (
+        <Text>Something went wrong - {(error as Error).message}</Text>
+      ) : (
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item._id}
+          horizontal
+          contentContainerStyle={{ columnGap: SIZES.medium }}
+          renderItem={({ item }) => <ProductCardView item={item} />}
+        />
+      )}
+    </View>
+  );
 };
 
-export default ProductRow;
-
 const styles = StyleSheet.create({
-    container:{
-        marginTop: SIZES.xSmall,
-        marginLeft: SIZES.small,
-    },
+  container: {
+    marginTop: SIZES.xSmall,
+    marginLeft: SIZES.small,
+  },
 });
+
+export default ProductRow;

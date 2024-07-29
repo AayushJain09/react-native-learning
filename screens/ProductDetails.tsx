@@ -1,24 +1,83 @@
-import {Image, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import React, {useState} from 'react';
+import {Alert, Image, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import React, {useEffect, useState} from 'react';
+import { useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Fontisto from 'react-native-vector-icons/Fontisto';
 import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {COLORS, SIZES} from '../constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
-const ProductDetails = ({navigation}: any) => {
+const ProductDetails = ({navigation}:any) => {
+
+  const route = useRoute();
+  const {item} = route.params;
   const [liked, setLiked] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
+  const [cartCount, setCartCount] = useState(1);
+
+  useEffect(() => {
+    const checkIfFavorite = async () => {
+      const userId = await AsyncStorage.getItem('id');
+      const favoriteKey = `favorites_${userId}`;
+      const favorites = JSON.parse(await AsyncStorage.getItem(favoriteKey)) || [];
+      const isFavorite = favorites.some(fav => fav._id === item._id);
+      setLiked(isFavorite);
+      };
+
+    checkIfFavorite();
+  }, []);
 
   const increment = () => {
     setCartCount(cartCount + 1);
   };
 
   const decrement = () => {
-    if (cartCount > 0) {
+    if (cartCount > 1) {
       setCartCount(cartCount - 1);
     }
   };
+  const toggleFavorite = async () => {
+    const userId = await AsyncStorage.getItem('id');
+    const favoriteKey = `favorites_${userId}`;
+    const favorites = JSON.parse(await AsyncStorage.getItem(favoriteKey)) || [];
+
+    console.log('Current favorites:', favorites);
+
+    if (liked) {
+      const updatedFavorites = favorites.filter(fav => fav._id !== item._id);
+      await AsyncStorage.setItem(favoriteKey, JSON.stringify(updatedFavorites));
+      } else {
+      favorites.push(item);
+      await AsyncStorage.setItem(favoriteKey, JSON.stringify(favorites));
+      }
+
+    setLiked(!liked);
+  };
+
+
+  const addToCart = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('id');
+      if (!userId) {
+        throw new Error('User ID not found');
+      }
+      const response = await axios.post('https://backend-furniture-seven.vercel.app/api/cart', {
+        userId,
+        cartItem: item._id,
+        quantity: cartCount,
+      });
+      Alert.alert('Success', response.data);
+    } catch (error) {
+      console.error('Full error response:', error.response ? error.response.data : error.message);
+      if (error.response && error.response.data) {
+        Alert.alert('Error', `There was an error adding the item to the cart: ${error.response.data.message}`);
+      } else {
+        Alert.alert('Error', 'There was an error adding the item to the cart.');
+      }
+    }
+  };
+
 
   return (
     <View style={styles.container}>
@@ -37,9 +96,7 @@ const ProductDetails = ({navigation}: any) => {
           />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => {
-            setLiked(!liked);
-          }}
+          onPress={() => toggleFavorite()}
           style={{
             backgroundColor: COLORS.lightWhite,
             borderRadius: SIZES.large,
@@ -48,13 +105,13 @@ const ProductDetails = ({navigation}: any) => {
           <Ionicons
             name="heart"
             size={30}
-            color={liked ? COLORS.primary : COLORS.red}
+            color={liked ? COLORS.red : COLORS.primary}
           />
         </TouchableOpacity>
       </View>
       <Image
         source={{
-          uri: 'https://imgs.search.brave.com/fv4zKy6hteZxuUl4ES496TmM25xKaX_yuVaoKAYFJpI/rs:fit:500:0:0:0/g:ce/aHR0cHM6Ly93d3cu/ZnVybml0dXJlc3Rv/cmVsb3NhbmdlbGVz/LmNvbS9tZWRpYS93/eXNpd3lnL2xpdmlu/Zy1yb29tLWZ1cm5p/dHVyZV8xLmpwZw',
+          uri: item.imageUrl,
         }}
         style={styles.image}
         resizeMode="cover"
@@ -62,9 +119,9 @@ const ProductDetails = ({navigation}: any) => {
 
       <View style={styles.details}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Product</Text>
+          <Text style={styles.title}>{item.title}</Text>
           <View style={styles.priceWrapper}>
-            <Text style={styles.price}>$213</Text>
+            <Text style={styles.price}>${item.price}d</Text>
           </View>
         </View>
         <View style={styles.ratingRow}>
@@ -87,13 +144,7 @@ const ProductDetails = ({navigation}: any) => {
         <View style={styles.descWrapper}>
           <Text style={styles.description}>Description</Text>
           <Text style={styles.descText}>
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Eos debitis
-            minima a modi, assumenda ratione ut at sunt quasi enim minus
-            excepturi voluptate fuga. Tempore accusamus aperiam a repellendus
-            reprehenderit.Lorem ipsum dolor sit amet consectetur adipisicing
-            elit. Eos debitis minima a modi, assumenda ratione ut at sunt quasi
-            enim minus excepturi voluptate fuga. Tempore accusamus aperiam a
-            repellendus reprehenderit.
+            {item.description}
           </Text>
         </View>
         <View style={{margin: SIZES.small}}>
@@ -106,7 +157,7 @@ const ProductDetails = ({navigation}: any) => {
                 gap: 8,
               }}>
               <Ionicons name="location-outline" size={20} color={COLORS.gray} />
-              <Text style={{color: COLORS.gray}}>adgua</Text>
+              <Text style={{color: COLORS.gray}}>{item.product_location}</Text>
             </View>
             <View
               style={{
@@ -128,7 +179,7 @@ const ProductDetails = ({navigation}: any) => {
            <TouchableOpacity onPress={() => {}} style={styles.cartBtn}>
               <Text style={styles.cartTitle}>BUY NOW</Text>
            </TouchableOpacity>
-           <TouchableOpacity onPress={() => {}} style={styles.addToCart}>
+           <TouchableOpacity onPress={() => {addToCart()}} style={styles.addToCart}>
               <Fontisto name="shopping-bag" size={22} color={COLORS.lightWhite} />
            </TouchableOpacity>
         </View>
